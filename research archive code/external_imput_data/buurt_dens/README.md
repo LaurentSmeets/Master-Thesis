@@ -1,0 +1,1 @@
+This folder contains the shape files of population density in the Netherlands on neighborhood level. The data was downloaded from: https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische%20data/wijk-en-buurtkaart-2017
