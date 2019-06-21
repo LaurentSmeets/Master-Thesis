@@ -1,1 +1,1 @@
-This folder contains many different subfolders. One for everyday of data collection. See example *(2018-11-01)* for the necessary files nested within the folders. All these files are only 1, redacted, row long. The Raw files are upto a million rows.
+This folder contains many different subfolders. One for every day of data collection. See example *(2018-11-01)* for the necessary files nested within the folders. All these files are only 1, redacted, row long. The Raw files are upto a million rows.
