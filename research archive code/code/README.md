@@ -1,1 +1,1 @@
-Open [*All_code_used_in_chronological_order.md*](https://github.com/LaurentSmeets/Master-Thesis/blob/master/research%20archive%20code/code/All_code_used_in_chronological_order.md) to see the R code used for this project.
+Open [*All_code_used_in_chronological_order.md*](https://github.com/LaurentSmeets/Master-Thesis/blob/master/research%20archive%20code/code/All_code_used_in_chronological_order.md) to see the R code used for this project. Alternatively, there also is a R markdown file to download.
