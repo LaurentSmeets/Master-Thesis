@@ -1,2 +1,2 @@
-This file contains all the trips by respondents who participated in the most recent diary-based ODiN travel survey
+This *AVA-EVA Analysis data set - complete.sav* file contains the respondent level statistics of all the respondents. (Again, due to privacy restrictions, this file is empty
 
