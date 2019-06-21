@@ -1988,8 +1988,8 @@ traintracksNL.data   <- fread("./external_imput_data/traintracksNL.csv")
 
 Statistics Netherlands collects data on population density at the municipality level and has shape files of all the urban centres of the Netherlands. These files are available and can be downloaded at these addresses:
 
--https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische%20data/wijk-en-buurtkaart-2017
-
+- https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische%20data/wijk-en-buurtkaart-2017
+- http://download.cbs.nl/regionale-kaarten/2011-bevolkingskern-shape.zip 
 
 
 
