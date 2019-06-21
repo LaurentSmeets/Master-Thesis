@@ -1,0 +1,2 @@
+"id,track_id,device_id,local_track_id,walk,run,mobility_scooter,car,bike,moped,scooter,motorcycle,train,subway,tram,bus,other,timestamp,created_at,updated_at,deleted_at,active_modes"
+"1,31,45,11,,,,,,,,,,,,,,2018-10-30 22:35:33.987667+01,2018-10-31 07:20:12.955211+01,,,{Walk}"
