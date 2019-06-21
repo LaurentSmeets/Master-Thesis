@@ -10,6 +10,7 @@ knitr::opts_chunk$set(warning=FALSE, message=FALSE, eval= FALSE)
 ```
 
 This file contains all the code, in chronological order, to reproduce my Thesis. Due to privacy reasons and the rules of Statistics Netherlands, no raw input data is available. However, the folder structure and names of the files that are needed are present.
+
 ### Packages and working directory
 ```{r}
 library(stringr)
@@ -40,19 +41,16 @@ library(GGally)
 library(ggcorrplot)
 library(userfriendlyscience)
 library(rcompanion)
-library(viridis)
 library(ggthemes)
 library(gganimate)
-library(maptools)
 library(tmap)
 library(tmaptools)
 library(sf)
 library(xtable)
-library(data.table)
 library(OpenStreetMap)
 library(jsonlite)
 library(proj4)
-library(caret)
+library(caret) 
 library(scales)
 library(ggrepel)
 library(lime)
@@ -60,6 +58,8 @@ library(vip)
 library(pdp)
 library(jtools)
 library(stargazer)
+library(skimr)
+library(broom)
 
 setwd("xxxx") # set top level directory
 ```
@@ -173,7 +173,7 @@ problemwords <- c("Didnt go there",
                   "niet")
 ```
 
-with this string we can now start to recode the string variable *active modes* into more useful variables, in the following steps
+With this string we can now start to recode the string variable *active modes* into more useful variables, in the following steps
 
 - Delete all special characters and punctuation marks (except commas) (*active modes* -> *mode*)
 - recode the trips with more than 1 transportation mode to be labelled *multi* (*mode* -> *mode1*)
@@ -473,7 +473,7 @@ saveRDS(locationslist2, "output_files/locationslist_alltracks.RDS")
 
 
 
-Due to memory (4gb) restrictions at statistics Netherlands it is not possible to `rbindlist(locationslist)` at once and we need to do this in smaller chunks.
+Due to memory (4GB) restrictions at statistics Netherlands it is not possible to `rbindlist(locationslist)` at once and we need to do this in smaller chunks.
 
 ```{r}
 rm(list=gdata::keep("locationslist"))
@@ -761,7 +761,8 @@ for(i in unique(new_locationswithtransport_2[, TrackDataIdVar.copy])){
 
 
 ### Function to clean the data
-This is the function used to clean the data.  
+
+This is the function used to clean and smooth the data. Later on this function is called on for all the individual trips. `des.acc` and `des.max.speed` can respectively be used to set the max accuracy and max speed (between adjacent points) filters. The other inputs serve as the different parameters of the smoothing algorithms. 
  
 ```{r}
 GPSdatacleaner <- function(GPSdataframe,
@@ -1449,10 +1450,6 @@ check_if_close2 <- function(dataset1,
   
   
   # 5) this is the actual function we use to check if a datapoint is nearby, by using the haversine method
-  #valuesnearstop <- unique(check2[, distance := haversine_distance(lat1 = gps_lat, 
-  #                                                                 lon1 = gps_lon,
-  #                                                                 lat2 = latitude_feature,
-  #                                                                 lon2 = longitude_feature)][distance < desired.dist], by=c("name", "id"))
   
   valuesnearstop <- check2[, distance := haversine_distance(lat1 = gps_lat, 
                                                             lon1 = gps_lon,
@@ -1489,7 +1486,7 @@ check_if_close2 <- function(dataset1,
 ## calculate features
 ### download context location data
 
-This code can be used to scrape context location data from OpenStreetMaps
+This code can be used to scrape context location data from OpenStreetMaps. First all the features were scraped and then saved in different `.csv` files. 
 
 ```{r}
 data(wrld_simpl)
@@ -1859,7 +1856,7 @@ fwrite(location_feature_of_interest_trimmed11, "external_imput_data/train_statio
 
 ### plot OSM points
 
-all the scraped OSM point can be plotted like this
+all the scraped OSM point can be plotted like this:
 
 ```{r}
 data("NLD_muni")
@@ -1972,19 +1969,29 @@ ggsave("plot_points2.png", plot_points)
 
 ### load in context location data
 
+Since, all the context features, were saved as separate files, we can now use this code to read them in again. 
+
+
 ```{r}
-station.data <- fread("./external_imput_data/train_stations_NL.csv")
-bus.stop.data <- fread("./external_imput_data//busstopsNL.csv")
+station.data  <- fread("./external_imput_data/train_stations_NL.csv")
+bus.stop.data <- fread("./external_imput_data/busstopsNL.csv")
 highways.data <- bind_rows(fread("./external_imput_data/2ndhighwayNL.csv"), fread("./external_imput_data/highwaysNL.csv"))
-onnofframpsNL.data <- bind_rows(fread("./external_imput_data//onnofframpsNL.csv"), fread("./external_imput_data/2ndhighwayonofframpNL.csv"))
-subwaystationNL.data <- fread("./external_imput_data//subwaystationNL.csv") 
-subwaytracksNL.data <- fread("./external_imput_data//subwaytracksNL.csv") 
-tramtracksNL.data <- fread("./external_imput_data//tramtracksNL.csv") 
-tramstopsNL.data <- fread("./external_imput_data//tramstopsNL.csv") 
-traintracksNL.data <- fread("./external_imput_data//traintracksNL.csv") 
+onnofframpsNL.data   <- bind_rows(fread("./external_imput_data/onnofframpsNL.csv"), fread("./external_imput_data/2ndhighwayonofframpNL.csv"))
+subwaystationNL.data <- fread("./external_imput_data/subwaystationNL.csv") 
+subwaytracksNL.data  <- fread("./external_imput_data/subwaytracksNL.csv") 
+tramtracksNL.data    <- fread("./external_imput_data/tramtracksNL.csv") 
+tramstopsNL.data     <- fread("./external_imput_data/tramstopsNL.csv") 
+traintracksNL.data   <- fread("./external_imput_data/traintracksNL.csv") 
 ```
 
 ### load in the CBS municipality and urbanizity data
+
+Statistics Netherlands collects data on population density at the municipality level and has shape files of all the urban centres of the Netherlands. These files are available and can be downloaded at these addresses:
+
+-https://www.cbs.nl/nl-nl/dossier/nederland-regionaal/geografische%20data/wijk-en-buurtkaart-2017
+
+
+
 
 ```{r}
 buurt  <- readOGR(dsn="external_imput_data/buurt_dens/buurt_2017.shp")
@@ -3664,6 +3671,394 @@ mat8 <- confusionMatrix(rf_output_vars123_combinedbikesmotorpublic3$pred$pred, r
 mat9 <- confusionMatrix(rf_output_vars123_combinedpublic_noer$pred$pred, rf_output_vars123_combinedpublic_noer$pred$obs) ###
 ```
 
+### Plotting results
+
+In addition to reporting the results, these can be plotted too. To get the publication ready plots, some further polishing in Adobe Illustrator was used.
+
+```{r}
+list_outcomes <- list(mat1, mat2, mat3, mat4, mat5, mat6, mat7, mat8, mat9)
+
+accuracy <- c()
+macro_F1 <- c()
+Sensitivity_Car <- c()
+Sensitivity_Metro <- c()
+Sensitivity_Tram <- c()
+Sensitivity_Bus <- c()
+Sensitivity_BikeElectric <- c()
+Sensitivity_BikeNonElectric <-c()
+Sensitivity_Walk <- c()
+Sensitivity_Train<- c()
+Sensitivity_Scooter <-c()
+Sensitivity_Bikecombined<- c()
+Sensitivity_Publiccombined <- c()
+Sensitivity_Motorized <-c()
+Sensitivity_User_error<- c()
+
+for(i in 1:length(list_outcomes)){
+  mat <- list_outcomes[[i]]
+  accuracy[i]<-mat$overall[1]
+  macro_F1[i] <- mean(mat$byClass[, "F1"])
+  Sensitivity_Car[i]  <- ifelse("Class: Car" %in% row.names(mat$byClass), mat$byClass["Class: Car","Sensitivity"], NA)
+  Sensitivity_Metro[i] <- ifelse("Class: Metro" %in% row.names(mat$byClass), mat$byClass["Class: Metro","Sensitivity"], NA)
+  Sensitivity_Tram[i] <- ifelse("Class: Tram" %in% row.names(mat$byClass), mat$byClass["Class: Tram","Sensitivity"], NA)
+  Sensitivity_Bus[i] <- ifelse("Class: PublicBus" %in% row.names(mat$byClass), mat$byClass["Class: PublicBus","Sensitivity"], NA)
+  Sensitivity_BikeElectric[i] <- ifelse("Class: BikeElectric" %in% row.names(mat$byClass), mat$byClass["Class: BikeElectric","Sensitivity"], NA)
+  Sensitivity_BikeNonElectric[i] <- ifelse("Class: BikeNonElectric" %in% row.names(mat$byClass), mat$byClass["Class: BikeNonElectric","Sensitivity"], NA)
+  Sensitivity_Walk[i] <-ifelse("Class: Walk" %in% row.names(mat$byClass), mat$byClass["Class: Walk","Sensitivity"], NA)
+  Sensitivity_Train[i] <-ifelse("Class: Train" %in% row.names(mat$byClass), mat$byClass["Class: Train","Sensitivity"], NA)
+  Sensitivity_Scooter[i] <-ifelse("Class: Scooter" %in% row.names(mat$byClass), mat$byClass["Class: Scooter","Sensitivity"], NA)
+  Sensitivity_Bikecombined[i] <-ifelse("Class: Bikecombined" %in% row.names(mat$byClass), mat$byClass["Class: Bikecombined","Sensitivity"], NA)
+  Sensitivity_Publiccombined[i] <-ifelse("Class: Publiccombined" %in% row.names(mat$byClass), mat$byClass["Class: Publiccombined","Sensitivity"], NA)
+  Sensitivity_Motorized[i] <-ifelse("Class: Motorized" %in% row.names(mat$byClass), mat$byClass["Class: Motorized","Sensitivity"], NA)
+  Sensitivity_User_error[i] <-ifelse("Class: User_error" %in% row.names(mat$byClass), mat$byClass["Class: User_error","Sensitivity"], NA)
+  
+}
+
+
+models_summarized2 <- tibble(models   = 1:length(list_outcomes),
+                             accuracy =  accuracy,
+                             macro_F1 = macro_F1,
+                             Sensitivity_Car =  Sensitivity_Car,
+                             Sensitivity_Metro =  Sensitivity_Metro,
+                             Sensitivity_Tram =  Sensitivity_Tram,
+                             Sensitivity_Bus =  Sensitivity_Bus,
+                             Sensitivity_BikeElectric =  Sensitivity_BikeElectric,
+                             Sensitivity_BikeNonElectric =  Sensitivity_BikeNonElectric,
+                             Sensitivity_Walk =  Sensitivity_Walk,
+                             Sensitivity_Train =  Sensitivity_Train,
+                             Sensitivity_Scooter =  Sensitivity_Scooter,
+                             Sensitivity_Bikecombined =  Sensitivity_Bikecombined,
+                             Sensitivity_Publiccombined =  Sensitivity_Publiccombined,
+                             Sensitivity_Motorized =  Sensitivity_Motorized,
+                             Sensitivity_User_error =Sensitivity_User_error) %>%
+  mutate(Sensitivity_User_error= ifelse(models==6, Sensitivity_User_error+.008, Sensitivity_User_error))%>%
+  mutate(Sensitivity_Publiccombined= ifelse(models==9, Sensitivity_Publiccombined-.005, Sensitivity_Publiccombined))%>%
+  mutate(Sensitivity_Walk= ifelse(models==6, Sensitivity_Walk-.008, Sensitivity_Walk))%>%
+  mutate(Sensitivity_Walk= ifelse(models==9, Sensitivity_Walk+.005, Sensitivity_Walk))%>%
+  mutate(Sensitivity_Bikecombined= ifelse(models==9, Sensitivity_Bikecombined-.008, Sensitivity_Bikecombined))%>%
+  # mutate(Sensitivity_Motorized= ifelse(models==5, Sensitivity_Motorized-.01, Sensitivity_Motorized))%>%
+  # mutate(Sensitivity_Car= ifelse(models==5, Sensitivity_Car-.01, Sensitivity_Car))%>%
+  # mutate(Sensitivity_Scooter= ifelse(models==5, Sensitivity_Scooter-.01, Sensitivity_Scooter))%>%
+  # mutate(Sensitivity_Bikecombined= ifelse(models==6, Sensitivity_Bikecombined-.005, Sensitivity_Bikecombined))%>%
+  # mutate(Sensitivity_User_error= ifelse(models==8, Sensitivity_User_error+.007, Sensitivity_User_error))%>%
+  # mutate(Sensitivity_Train= ifelse(models==5, Sensitivity_Train+.002, Sensitivity_Train))%>%
+  # mutate(Sensitivity_Scooter= ifelse(models==4, Sensitivity_Scooter-.007, Sensitivity_Scooter))%>%
+  # mutate(Sensitivity_BikeNonElectric= ifelse(models==1, Sensitivity_BikeNonElectric-.003, Sensitivity_BikeNonElectric))%>%
+  mutate_at(vars(Sensitivity_Car, Sensitivity_Scooter), ~ifelse(is.na(.),Sensitivity_Motorized, .))%>%
+  mutate_at(vars(Sensitivity_BikeElectric, Sensitivity_BikeNonElectric), ~ifelse(is.na(.),Sensitivity_Bikecombined, .))%>%
+  mutate_at(vars(Sensitivity_Metro, Sensitivity_Bus, Sensitivity_Train, Sensitivity_Tram), ~ifelse(is.na(.),Sensitivity_Publiccombined, .)) %>%
+  mutate(Sensitivity_BikeElectric =ifelse(as.character(models) %in% c("5", "6","7","8","9"),NA, Sensitivity_BikeElectric))%>%
+  mutate(Sensitivity_BikeNonElectric =ifelse(as.character(models) %in% c( "5","6", "7","8","9"),NA, Sensitivity_BikeNonElectric))%>%
+  mutate(Sensitivity_Car =ifelse(as.character(models) %in% c( "6","7","8","9"),NA, Sensitivity_Car))%>%
+  mutate(Sensitivity_Scooter =ifelse(as.character(models) %in% c( "6","7","8","9"),NA, Sensitivity_Scooter)) %>%
+  mutate(Sensitivity_Metro =ifelse(as.character(models)%in% c("7","8","9"),NA, Sensitivity_Metro))%>%
+  mutate(Sensitivity_Bus =ifelse(as.character(models)%in% c("9"),NA, Sensitivity_Bus))%>%
+  mutate(Sensitivity_Train =ifelse(as.character(models)%in% c("8", "9"),NA, Sensitivity_Train))%>%
+  mutate(Sensitivity_Tram =ifelse(as.character(models)%in% c("7","8","9"),NA, Sensitivity_Tram))%>%
+  gather(key = "key", value = "value", - models)%>%
+  mutate(size2 = ifelse(key=="accuracy", "a" , ifelse(key=="macro_F1", "c", "b"))) %>%
+  mutate(label_left  =  if_else(models==min(models), as.character(key), NA_character_), NA_character_)%>%
+  mutate(label_right =  ifelse(key %in% c("Sensitivity_Motorized", 'Sensitivity_Bikecombined',"Sensitivity_Publiccombined"), 
+                               if_else(models==max(models), as.character(key), NA_character_),NA_character_))
+
+
+
+plot_models2 <- ggplot(models_summarized2) +
+  geom_line(aes(x        = models, 
+                y        = value, 
+                col      = key,
+                size     = size2,
+                linetype = size2),
+            alpha=.9)+
+  geom_point(aes(x     = models, 
+                 y     = value,
+                 col   = key,
+                 shape = key),
+             size=2)+
+  
+  geom_label_repel(aes(label= label_left,
+                       x= models, 
+                       y =value),
+                   nudge_x = -.5,
+                   na.rm = TRUE)+
+  geom_label_repel(aes(label= label_right,
+                       x= models, 
+                       y =value),
+                   nudge_x = 1,
+                   na.rm = TRUE)+
+  scale_x_continuous(breaks= 1:9, 
+                     labels=c("Only GPS &\n time features", 
+                              "add context\nlocation features",
+                              "add registry data", 
+                              "collapse bike and e-bike",
+                              "collapse Motorized modes",
+                              "collapse tram and metro ",
+                              "add train to collapsed\n public transport",
+                              "add bus to collapsed\n public transport",
+                              "exclude user error"),
+                     limits=c(-1,11))+
+  theme_minimal()+
+  scale_shape_manual(values=2:16)+
+  scale_size_manual(values=c("a"       = 2,
+                             "b"       = .7,
+                             "c"       = .7))+
+  scale_linetype_manual(values=c("a"       = "solid",
+                                 "c"       = "solid",
+                                 "b"       = "dashed"))+
+  theme(axis.text.x        = element_text(angle = 60, 
+                                          hjust = 1),
+        panel.grid.minor.x = element_blank())+
+  scale_color_manual(values= c(accuracy = "black",
+                               macro_F1 = "black",
+                               Sensitivity_Car = "#FFD086",
+                               Sensitivity_Metro ="#3E05EB",
+                               Sensitivity_Tram="#1540BF",
+                               Sensitivity_Bus ="#2877EB",
+                               Sensitivity_BikeElectric ="#00FFBE",
+                               Sensitivity_BikeNonElectric  ="#00CC36",
+                               Sensitivity_Walk = "#8A1B00",
+                               Sensitivity_Train="#87DFFF",
+                               Sensitivity_Scooter = "#EBE800",
+                               Sensitivity_Bikecombined = "#26803E",
+                               Sensitivity_Publiccombined = "#740E80",
+                               Sensitivity_Motorized  = "orange",
+                               Sensitivity_User_error = "red"))
+
+ggsave("plot_model9.svg", plot_models2 ,width= 30, height=18, units = "cm") # save as .svg to facilitate editting.
+```
+
+## Feature importance
+
+This is the code that was used to estimate feature importance. The Caret model, already calculates the variable (feature) importance, but this code is needed to estimate the significance using the Altman method.
+
+```{r}
+ranger_p_value1 <- ranger::importance_pvalues(rf_output_vars1$finalModel, 
+                                              method= "altmann", 
+                                              formula= mode3~., 
+                                           data=all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars1_sub5,
+                                           num.permutations = 1000)
+
+
+ranger_p_value123 <- ranger::importance_pvalues(rf_output_vars123$finalModel, 
+                                              method= "altmann", 
+                                              formula= mode3~., 
+                                              data=all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5,
+                                              num.permutations = 1000)
+
+ranger_p_value9 <- ranger::importance_pvalues(rf_output_vars123_combinedpublic_noer$finalModel, 
+                                              method= "altmann", 
+                                              formula= mode3~., 
+                                              data=all_trips_with_person_char_missing_fixed_with_dummies_combined_modesall_no_error_vars123_sub5,
+                                              num.permutations = 1000)
+
+
+
+varImp(rf_output_vars1)
+varImp(rf_output_vars123)
+varImp(rf_output_vars123_combinedpublic_noer)
+```
+
+### Marginal probability plots
+
+With this code the marginal probabilities of three different features are calculated and plotted. We first create two functions that are needed to optimize and extract the marginal probabilities.
+
+```{r}
+setDTthreads(7)
+
+all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5 <- readRDS("all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5.RDS")
+rf_output_vars123<-readRDS("rf_output_vars123.RDS")
+
+## these matching functions are needed.
+CJ.table.1       <- function(X,Y) setkey(X[,c(k=1,.SD)],k)[Y[,c(k=1,.SD)],allow.cartesian=TRUE][,k:=NULL]
+augment.multinom <- function(object, newdata) {
+  newdata <- as_tibble(newdata)
+  class_probs <- predict(object, newdata, type = "prob")
+  bind_cols(newdata, as_tibble(class_probs))
+}
+## 1) ##
+
+var <- quo(speed_0.9)
+x_s <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, !!var)   # grid where we want partial dependencies
+x_c <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, -!!var)  #  other predictors
+
+
+setDT(x_s)
+setDT(x_c)
+grid<-CJ.table.1(x_s, x_c)
+
+setDT(grid)
+gridF1 <- grid[sample(.N, floor(18395517/20))]
+au<-augment.multinom(rf_output_vars123, gridF1)
+
+pd <- au %>%
+  gather(class, prob, Train,BikeNonElectric,Car,Walk,Scooter,BikeElectric, PublicBus, User_error, Metro,Tram ) %>% 
+  group_by(class, !!var) %>%
+  summarize(marginal_prob = mean(prob))
+
+saveRDS(pd, "pd_speed90_model3.rds")
+
+## 2) ##
+
+var <- quo(intrapolated_near_traintracks_relative1)
+
+x_s <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, !!var)   # grid where we want partial dependencies
+x_c <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, -!!var)  #  other predictors
+grid<-crossing(x_s, x_c)
+setDT(grid)
+setDT(x_s)
+setDT(x_c)
+grid<-CJ.table.1(x_s, x_c)
+
+setDT(grid)
+gridF1 <- grid[sample(.N, floor(18395517/20))]
+
+au<-augment.multinom(rf_output_vars123, gridF1)
+gc()
+
+pd <- au %>%
+  gather(class, prob, Train,BikeNonElectric,Car,Walk,Scooter,BikeElectric, PublicBus, User_error, Metro,Tram ) %>% 
+  group_by(class, !!var) %>%
+  summarize(marginal_prob = mean(prob))
+
+
+saveRDS(pd, "pd_traintrack.rds")
+
+## 3) ##
+var <- quo(near_subway_station_relative2)
+
+x_s <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, !!var)   # grid where we want partial dependencies
+x_c <- select(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5, -!!var)  #  other predictors
+setDT(x_s)
+setDT(x_c)
+grid<-CJ.table.1(x_s, x_c)
+
+
+setDT(grid)
+gridF1 <- grid[sample(.N, floor(18395517/10))]
+au<-augment.multinom(rf_output_vars123, gridF1)
+gc()
+
+
+pd <- au %>%
+  gather(class, prob, Train,BikeNonElectric,Car,Walk,Scooter,BikeElectric, PublicBus, User_error, Metro,Tram ) %>% 
+  group_by(class, !!var) %>%
+  summarize(marginal_prob = mean(prob))
+
+saveRDS(pd, "pd_subway.rds")
+```
+
+#### make plot
+
+The above code calculated the marginal probabilities, This code plots them, like figure 5
+
+```{r}
+pd_traintrack <-readRDS("pd_traintrack.rds")
+pd_subway <-readRDS("pd_subway.rds")
+pd_speed <-readRDS("pd_speed90_model3.rds")
+
+all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5 <- readRDS("all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5.RDS")
+
+
+plotforlegend <- tibble(x= 1:200,
+                        y= 2:201,
+                        modes =sample(unique(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5$mode3),
+                                      200, replace = TRUE)) %>%
+  ggplot(aes( x ,    y, color = modes)) +
+  geom_smooth(size = 1.5,  
+              se = FALSE, 
+              alpha=.9)+
+  scale_color_manual(values= c(Car = "#FFD086",
+                               Metro ="#3E05EB",
+                               Tram="#1540BF",
+                               PublicBus ="#2877EB",
+                               BikeElectric ="#00FFBE",
+                               BikeNonElectric  ="#00CC36",
+                               Walk = "#8A1B00",
+                               Train="#87DFFF",
+                               Scooter = "#EBE800",
+                               User_error = "red"))+ 
+  theme_minimal()+  
+  theme(legend.position = "bottom")+
+  guides(col=guide_legend(nrow=2,byrow=TRUE))
+legend <- cowplot::get_legend(plotforlegend)
+
+plot_traintrack<- pd_traintrack %>%
+  ggplot(aes(intrapolated_near_traintracks_relative1, marginal_prob, color = class)) +
+  geom_smooth(size = 1.5,  
+              se = FALSE, 
+              alpha=.9) +
+  labs(y = "Average class probability across all other predictors",
+       x = "proximity train track") +
+  coord_cartesian(xlim = c(0,.15))+
+  theme_minimal()+
+  scale_color_manual(values= c(Car = "#FFD086",
+                               Metro ="#3E05EB",
+                               Tram="#1540BF",
+                               PublicBus ="#2877EB",
+                               BikeElectric ="#00FFBE",
+                               BikeNonElectric  ="#00CC36",
+                               Walk = "#8A1B00",
+                               Train="#87DFFF",
+                               Scooter = "#EBE800",
+                               User_error = "red"))+
+  theme(legend.position = "none")
+
+plot_subway<- pd_subway %>%
+  ggplot(aes(near_subway_station_relative2, marginal_prob, color = class)) +
+  geom_smooth(size = 1.5,  
+              se = FALSE, 
+              alpha=.9) +
+  labs(y = "",
+       x = "near_subway_station_relative2") +
+  coord_cartesian(xlim = c(0,.2))+
+  theme_minimal()+
+  scale_color_manual(values= c(Car = "#FFD086",
+                               Metro ="#3E05EB",
+                               Tram="#1540BF",
+                               PublicBus ="#2877EB",
+                               BikeElectric ="#00FFBE",
+                               BikeNonElectric  ="#00CC36",
+                               Walk = "#8A1B00",
+                               Train="#87DFFF",
+                               Scooter = "#EBE800",
+                               User_error = "red"))+
+  theme(legend.position = "none")
+
+plot_speed<- pd_speed %>%
+  ggplot(aes(speed_0.9, marginal_prob, color = class)) +
+  geom_smooth(size = 1.5,  
+              se = FALSE, 
+              alpha=.9) +
+  labs(y = "",
+       x = "speed_0.9") +
+  #coord_cartesian(xlim = c(0,quantile(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5$speed_0.9, .98)))+
+  xlim(0, 40)+
+  theme_minimal()+
+  scale_color_manual(values= c(Car = "#FFD086",
+                               Metro ="#3E05EB",
+                               Tram="#1540BF",
+                               PublicBus ="#2877EB",
+                               BikeElectric ="#00FFBE",
+                               BikeNonElectric  ="#00CC36",
+                               Walk = "#8A1B00",
+                               Train="#87DFFF",
+                               Scooter = "#EBE800",
+                               User_error = "red"))+
+  theme(legend.position = "none")
+
+
+toprow <- cowplot::plot_grid(plot_traintrack,plot_subway , plot_speed, labels = c("A",'B', 'C'), align = 'v',
+                             ncol = 3)
+
+
+plot_marginal_probs2 <- cowplot::plot_grid(toprow, legend,
+                                          ncol = 1,
+                                          rel_heights = c(10, 1))
+
+
+ggsave("plot_marginal_probs2.svg", plot_marginal_probs2, width= 25, units = "cm")
+```
+
 
 ## code to calculate summary statics.
 
@@ -4127,7 +4522,7 @@ labelled_GPS_ODIN <- all_trips_with_person_char_missing_fixed_with_dummies_and_i
            mode3 != "other_transport_mode"&
            mode3 != "multi") %>%
   mutate(mode3 = ifelse(mode3== "User error", "User_error", mode3)) %>%
-  filter(n_datapoints > 5) %>%
+  filter(n_datapoints > 2) %>%
   group_by(mode3) %>%
   summarise(tt =n()/2584*100)
 
@@ -4155,7 +4550,7 @@ unlabbeled_stats_vars123.withusername <- predict(unlabbeled_stats_vars123.withus
 anyNA(unlabbeled_stats_vars123.withusername)
 
 unlabbeled_stats_vars123.withusername_sub5.ODIN <- unlabbeled_stats_vars123.withusername %>%
-  filter(n_datapoints > 5)%>%
+  filter(n_datapoints > 2)%>%
   filter(username %in% VN_and_username$username)
 
 predicted_values_ODIN <- enframe(predict(rf_output_vars123.ratio, unlabbeled_stats_vars123.withusername_sub5.ODIN))
@@ -4176,7 +4571,7 @@ labelled_ODIN_modes <- all_trips_with_person_char_missing_fixed_with_dummies_and
            mode3 != "other_transport_mode"&
            mode3 != "multi") %>%
   mutate(mode3 = ifelse(mode3== "User error", "User_error", mode3)) %>%
-  filter(n_datapoints > 5) 
+  filter(n_datapoints > 2) 
 
 
 labelled_unlabelled_combined_ODIN_respondents <- c(as.character(predicted_values_ODIN$value), labelled_ODIN_modes$mode3) %>% 
@@ -4319,5 +4714,91 @@ fullmodel3 <- glm(relevel(classified, ref= "incorrect") ~ n_datapoints + mean_ac
 
 
 stargazer(fullmodel3)
+```
+
+## Code summary statistics 
+
+This code reproduces Table 9 from the thesis. First the top 10 most import features are selected, then they are grouped by transport mode, then statistics are calculated and then they are all out in one table.
+
+```{r}
+all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123
+setDT(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123)
+names(all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123)
+
+long_format_statistics <-  all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123 %>% 
+  filter(mode3 != "Lorry"&
+           mode3 != "trip saved twice with multi modes" &
+           mode3 != "Motorbike" &
+           mode3 != "other_transport_mode"&
+           mode3 != "multi") %>%
+  select("mode3",
+         "intrapolated_near_traintracks_relative1",
+         "near_subway_station_relative2",
+         "speed_0.9",
+         "near_subwaytrack_relative2",
+         "speed_0.95",
+         "intrapolated_near_tram_stop_relative1",
+         "distance_straight_line",
+         "speed_0.05",
+         "speed_0.75",
+         "median_speed") %>%
+  gather(key= "statistic", value= "value", -mode3)
+
+
+stats_of_Stat <- long_format_statistics %>%
+  group_by(statistic, mode3) %>%
+  summarise(mean   = mean(value, na.rm = TRUE),
+            median = median(value, na.rm = TRUE),
+            sd = sd(value, na.rm = TRUE),
+            Q.75= quantile(value, .75, na.rm = TRUE),
+            Q.25= quantile(value, .25, na.rm = TRUE))
+
+
+data_table <- stats_of_Stat
+
+seleced_stats <-  c(  "intrapolated_near_traintracks_relative1",
+  "near_subway_station_relative2",
+  "speed_0.9",
+  "near_subwaytrack_relative2",
+  "speed_0.95",
+  "intrapolated_near_tram_stop_relative1",
+  "distance_straight_line",
+  "speed_0.05",
+  "speed_0.75",
+  "median_speed")
+
+# ad a little rounding features that rounds to different decimals, based on the size of the statistic
+myrounding <- function(x){
+  if(x < 10){
+    y <- round(x, 2)
+  }else{
+    if(x>10 & x<100){
+      y <- round(x, 1)
+    }else{
+      y <- round(x, 0)}}
+  
+  return(y)
+}
+
+myroundingvec <- Vectorize(myrounding)
+
+
+#Alternatvely, you could use the mean instead of the median for some of the statistics, by using this code:
+
+# mean_instead_of_median <- c("intrapolated_near_traintracks_relative1",
+#                             "near_subway_station_relative2",
+#                             "near_subwaytrack_relative2",
+#                             "intrapolated_near_tram_stop_relative1")
+
+
+formatted_stats <- data_table %>%
+  as_tibble() %>%
+  mutate(CI_50_median = ifelse(statistic %in% mean_instead_of_median,
+                               paste0(myroundingvec(mean), "\\newline [", myroundingvec(Q.25), "; ", myroundingvec(Q.75), "]"),
+                               paste0(myroundingvec(median), "\\newline [", myroundingvec(Q.25), "; ", myroundingvec(Q.75), "]"))) %>%  select(statistic, mode3, CI_50_median) %>%
+  spread(mode3, CI_50_median)%>%
+  filter(statistic %in% seleced_stats)
+
+xtable(formatted_stats)
 ```
 
