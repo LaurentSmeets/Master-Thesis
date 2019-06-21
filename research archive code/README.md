@@ -1,1 +1,1 @@
-The folder **code** hosts the Markdown file with all the annotated R code needed to reproduce this project
+The folder **code** hosts the Markdown file with all the annotated R code needed to reproduce this project. The other folders contain the different imput files needed or the output files that are created.
