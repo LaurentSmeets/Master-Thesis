@@ -4588,6 +4588,7 @@ labelled_unlabelled_combined_ODIN_respondents <- labelled_unlabelled_combined_OD
 ######
 all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5%>%
   mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
+  filter(mode3 != 'User_error') %>%
   summarise(median_dist = median(total_distance),
             mean_datapoint = median(n_datapoints),
             time= median(diff_time_total),
@@ -4597,6 +4598,7 @@ all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5%>%
 
 unlabbeled_stats_vars123_sub5%>%
   mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
+  filter(mode3 != 'User_error') %>%
   summarise(median_dist = median(total_distance),
             mean_datapoint = median(n_datapoints),
             time= median(diff_time_total),
@@ -4604,6 +4606,7 @@ unlabbeled_stats_vars123_sub5%>%
 
 bind_rows(unlabbeled_stats_vars123_sub5, all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5)%>%
   mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
+  filter(mode3 != 'User_error') %>%
   summarise(median_dist = median(total_distance),
             mean_datapoint = median(n_datapoints),
             time= median(diff_time_total),
@@ -4611,6 +4614,7 @@ bind_rows(unlabbeled_stats_vars123_sub5, all_trips_with_person_char_missing_fixe
 
 bind_rows(unlabbeled_stats_vars123.withusername_sub5.ODIN, labelled_ODIN_modes)%>%
   mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
+  filter(mode3 != 'User_error') %>%
   summarise(median_dist = median(total_distance),
             mean_datapoint = median(n_datapoints),
             time= median(diff_time_total),
@@ -4618,70 +4622,6 @@ bind_rows(unlabbeled_stats_vars123.withusername_sub5.ODIN, labelled_ODIN_modes)%
 
 
 
-
- rf_output_vars123.ratio$pred$obs%>%
-  enframe()%>%  
-  group_by(value) %>%
-  summarise(tt =n()/length(rf_output_vars123.ratio$pred$obs)*100)
-
-predicted_values2 <- as_tibble(predict(rf_output_vars123.ratio, unlabbeled_stats_vars123_sub5, type= "prob"))
-
-
-predicted_values2  %>%
-  rowid_to_column("id") %>%
-  gather(mode,prob,BikeElectric:Walk) %>%
-  group_by(id) %>%
-  slice(which.max(prob))%>%
-  mutate(prb_p75 = ifelse(prob>.75, 1,0)) %>%
-  ungroup() %>%
-  #group_by(mode) %>%
-  summarise(median= median(prob),
-            mean = mean(prob),
-            meanP90 = mean(prb_p75))
-            
-
-rf_output_vars123.ratio$pred %>%
-  as_tibble() %>%
-  select( pred: Walk, -obs)%>%
-  rowid_to_column("id") %>%
-  gather(mode,prob,BikeElectric:Walk) %>%
-  group_by(id) %>%
-  slice(which.max(prob))%>%
-  mutate(prb_p75 = ifelse(prob>.75, 1,0)) %>%
-  ungroup() %>%
-  #group_by(mode) %>%
-  summarise(median= median(prob),
-            mean = mean(prob),
-            meanP90 = mean(prb_p75))
-
-names(unlabbeled_stats_vars123_sub5)
-
-unlabbeled_stats_vars123_sub5 %>%
-  mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
-  summarise(median_dist = median(total_distance),
-            mean_datapoint = median(n_datapoints),
-            mean_median_speed = median(median_speed),
-            mean_urban1 = mean(Urbanity),
-            mean_urban2 = mean(median_urban),
-            median_age = median(Age_in_yrs),
-            distance2 = median(intrapolated_total_distance),
-            rush = mean(intrapolated_during_rush),
-            time= median(diff_time_total),
-            shorttrip = mean(total_distanceunderx))
-
-
-all_trips_with_person_char_missing_fixed_with_dummies_and_intrap_vars123_sub5%>%
-  mutate(total_distanceunderx = ifelse(total_distance<500, 1,0))%>%
-  summarise(median_dist = median(total_distance),
-            mean_datapoint = median(n_datapoints),
-            mean_median_speed = median(median_speed),
-            mean_urban1 = mean(Urbanity),
-            mean_urban2 = mean(median_urban),
-            median_age = median(Age_in_yrs),
-            distance2 = median(intrapolated_total_distance),
-            rush = mean(intrapolated_during_rush),
-            time= median(diff_time_total),
-            shorttrip = mean(total_distanceunderx))
 ```
 
 
